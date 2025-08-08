@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import argparse
 import datetime
@@ -91,10 +90,6 @@ def connect_to_wifi(
 
     return credentials_valid
 
-
-# ----------------------------------------------------------------------
-# CLI
-# ----------------------------------------------------------------------
 description = (
     "Perform an online, horizontal dictionary attack against a WPA Enterprise network."
 )
