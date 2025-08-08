@@ -1,21 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-WPA2-Enterprise credential spray/dictionary tool via wpa_supplicant D-Bus.
-
-Features:
-- Reliability & correctness: event-driven state wait (fallback polling), explicit cleanup, select by returned net id.
-- Speed & stealth: jitter/backoff, optional shuffling, spray modes (user-first, pass-first).
-- Flexibility: EAP/phase2/anonymous-identity/CA/domain-match/subject-match/alt-subject-matches/server-cert-check,
-               BSSID/freq pinning.
-- UX & resilience: streaming wordlists, deterministic shuffle (saved RNG seeds), autosave on signals, periodic saves,
-                   resume with content digests, structured logs, secure CSV output.
-- Hardening & Safety: locked state writes (no double-writer races), optional privilege drop, MAC randomization.
-
-Requires:
-  python3, twisted, wpa_supplicant.core, macchanger (if using --randomize-mac).
-"""
 
 import argparse
 import csv
@@ -43,6 +26,10 @@ import fcntl
 import pwd
 import grp
 
+# ------------------------- Tool Information -------------------------
+
+TOOL_NAME = "Air-Piledriver"
+TOOL_VERSION = "1.0"
 
 # ------------------------- Utilities -------------------------
 
@@ -420,8 +407,8 @@ def write_valid(outfile: Optional[str], jsonl: Optional[str], ssid: str, user: s
 
 def parse_args() -> RunCfg:
     p = argparse.ArgumentParser(
-        description="Online credential spray/dictionary against WPA2-Enterprise via wpa_supplicant.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+      description=f"{TOOL_NAME} v{TOOL_VERSION} - Online credential spray/dictionary attack against WPA2-Enterprise via wpa_supplicant.",
+      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
     p.add_argument("-i", "--interface", required=True, dest="device", help="Wireless interface (e.g., wlan0)")
@@ -477,7 +464,8 @@ def parse_args() -> RunCfg:
                    help="Randomize MAC using macchanger (requires root and macchanger)")
 
     args = p.parse_args()
-
+    logging.info(f"Starting {TOOL_NAME} v{TOOL_VERSION}")
+  
     if not args.password and not args.passfile:
         p.error("You must specify either --password or --passfile (use '-' to read from stdin).")
 
