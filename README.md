@@ -18,7 +18,6 @@
 ## Speed, Stealth & Reliability
 - **Jittered delays** and **spray modes** (`user-first` / `pass-first`) to evade detection.
 - Optional **MAC address randomization** (`off`, `once`, `each-user`, `each-pass`).
-- **Exponential backoff** and cooldowns to reduce account lockouts.
 - Event-driven connection monitoring with **reliable cleanup** of networks.
 
 ---
