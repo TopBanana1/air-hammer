@@ -1,0 +1,2 @@
+twisted>=22.0.0
+wpa_supplicant-pydbus>=0.2.0
